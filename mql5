@@ -1,0 +1,177 @@
+mql5
+//+------------------------------------------------------------------+
+//|                                              Phibo MA SAR.mq5    |
+//|                          Copyright 2021, Forex Robot Easy Team   |
+//|                                                  forexroboteasy.com|
+//+------------------------------------------------------------------+
+#property copyright 'Copyright 2021, Forex Robot Easy Team'
+#property link      'forexroboteasy.com'
+#property version   '1.00'
+#property strict
+
+//--- Input parameters
+input int MA_Period = 14; // Moving Average period
+input double SAR_Step = 0.02; // SAR step
+input double SAR_Maximum = 0.2; // SAR maximum
+
+//--- Global variables
+int totalLines = 8; // Total number of lines in the MIMA SAR indicator
+int lastPosition = 0; // Last position in the lines array
+double[] lines; // Array to store the MIMA SAR lines
+
+//+------------------------------------------------------------------+
+//| Custom indicator initialization function                         |
+//+------------------------------------------------------------------+
+int OnInit()
+{
+   //--- Allocate memory for the lines array
+   ArrayResize(lines, totalLines);
+   
+   //--- Indicator buffers mapping
+   SetIndexBuffer(0, lines);
+   
+   //--- Set the indicator name
+   IndicatorSetString(INDICATOR_SHORTNAME, 'Phibo MA SAR');
+   
+   //--- Set the indicator digits
+   IndicatorSetInteger(INDICATOR_DIGITS, MarketInfo(_Symbol, MODE_DIGITS));
+   
+   return(INIT_SUCCEEDED);
+}
+
+//+------------------------------------------------------------------+
+//| Custom indicator iteration function                              |
+//+------------------------------------------------------------------+
+int OnCalculate(const int rates_total,
+                const int prev_calculated,
+                const datetime &time[],
+                const double &open[],
+                const double &high[],
+                const double &low[],
+                const double &close[],
+                const long &tick_volume[],
+                const long &volume[],
+                const int &spread[])
+{
+   int limit = rates_total - prev_calculated;
+   
+   //--- Calculate the MIMA SAR lines
+   for(int i = 0; i < limit; i++)
+   {
+      CalculateMIMASAR(i, rates_total, close);
+   }
+   
+   return(rates_total);
+}
+
+//+------------------------------------------------------------------+
+//| Function to calculate the MIMA SAR lines                          |
+//+------------------------------------------------------------------+
+void CalculateMIMASAR(const int index,
+                      const int total,
+                      const double &close[])
+{
+   //--- Calculate the Moving Average
+   double ma = iMA(_Symbol, 0, MA_Period, 0, MODE_SMA, PRICE_CLOSE, index);
+   
+   //--- Calculate the SAR
+   double sar = iSAR(_Symbol, 0, SAR_Step, SAR_Maximum, index);
+   
+   //--- Store the SAR value in the lines array
+   lines[lastPosition] = sar;
+   
+   //--- Update the last position in the lines array
+   lastPosition++;
+   
+   //--- Check if we have reached the maximum number of lines
+   if(lastPosition >= totalLines)
+   {
+      lastPosition = 0;
+   }
+   
+   //--- Check for trend reversals
+   if(IsTrendReversal())
+   {
+      //--- Perform trading actions based on the detected trend
+      PerformTradingActions();
+   }
+}
+
+//+------------------------------------------------------------------+
+//| Function to check for trend reversals                            |
+//+------------------------------------------------------------------+
+bool IsTrendReversal()
+{
+   //--- Check if at least five lines are aligned
+   int alignedLines = 0;
+   
+   for(int i = 0; i < totalLines; i++)
+   {
+      if(lines[i] > lines[(i + 1) % totalLines])
+      {
+         alignedLines++;
+      }
+   }
+   
+   return (alignedLines >= 5);
+}
+
+//+------------------------------------------------------------------+
+//| Function to perform trading actions                               |
+//+------------------------------------------------------------------+
+void PerformTradingActions()
+{
+   //--- Check if all lines are aligned upwards (pure uptrend)
+   bool isPureUptrend = true;
+   
+   for(int i = 0; i < totalLines; i++)
+   {
+      if(lines[i] <= lines[(i + 1) % totalLines])
+      {
+         isPureUptrend = false;
+         break;
+      }
+   }
+   
+   //--- Check if all lines are aligned downwards (pure downtrend)
+   bool isPureDowntrend = true;
+   
+   for(int i = 0; i < totalLines; i++)
+   {
+      if(lines[i] >= lines[(i + 1) % totalLines])
+      {
+         isPureDowntrend = false;
+         break;
+      }
+   }
+   
+   //--- Check for buying or selling signals based on the detected trend
+   if(isPureUptrend)
+   {
+      //--- Place a buying signal
+      BuySignal();
+   }
+   else if(isPureDowntrend)
+   {
+      //--- Place a selling signal
+      SellSignal();
+   }
+}
+
+//+------------------------------------------------------------------+
+//| Function to place a buying signal                                 |
+//+------------------------------------------------------------------+
+void BuySignal()
+{
+   //--- Place your code to execute a buying signal here
+   Print('Buying signal detected');
+}
+
+//+------------------------------------------------------------------+
+//| Function to place a selling signal                                |
+//+------------------------------------------------------------------+
+void SellSignal()
+{
+   //--- Place your code to execute a selling signal here
+   Print('Selling signal detected');
+}
